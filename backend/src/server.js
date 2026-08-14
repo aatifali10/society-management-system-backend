@@ -4,6 +4,9 @@ import cors from "cors";
 import helmet from "helmet";
 import connectDatabase from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
+import residentRoutes from "./routes/residentRoutes.js";
+import securityRoutes from "./routes/securityRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -23,6 +26,9 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/resident", residentRoutes);
+app.use("/api/security", securityRoutes);
+app.use("/api/admin", adminRoutes);
 
 const startServer = async () => {
   await connectDatabase();
