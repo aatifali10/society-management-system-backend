@@ -1,67 +1,46 @@
-import mongoose from "mongoose";
-
-const emergencyContactSchema = new mongoose.Schema(
-  {
-    name: { type: String, trim: true },
-    phone: { type: String, trim: true },
-    relation: { type: String, trim: true },
-  },
-  { _id: false },
-);
-
-const familyMemberSchema = new mongoose.Schema(
-  {
-    name: { type: String, trim: true },
-    relation: { type: String, trim: true },
-    age: { type: Number, min: 0 },
-  },
-  { _id: false },
-);
-
-const residentProfileSchema = new mongoose.Schema(
-  {
-    flatNumber: { type: String, trim: true },
-    vehicleRegistrations: [{ type: String, trim: true }],
-    emergencyContacts: [emergencyContactSchema],
-    familyMembers: [familyMemberSchema],
-    tenantDetails: {
-      name: { type: String, trim: true },
-      phone: { type: String, trim: true },
-      moveInDate: { type: Date },
-    },
-  },
-  { _id: false },
-);
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema(
   {
-    firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
-    email: {
+    username: {
       type: String,
-      required: true,
+      required: [true, 'Username is required'],
       unique: true,
-      lowercase: true,
-      trim: true,
+      trim: true
     },
-    phone: { type: String, required: true, trim: true },
-    password: { type: String, required: true },
+    password: {
+      type: String,
+      required: [true, 'Password is required']
+    },
     role: {
       type: String,
-      enum: ["resident", "security", "admin"],
-      default: "resident",
+      enum: ['Admin', 'Resident', 'Guard'],
+      required: [true, 'Role is required']
     },
-    mfaEnabled: { type: Boolean, default: false },
-    mfaCode: { type: String },
-    mfaCodeExpiresAt: { type: Date },
-    profile: residentProfileSchema,
-    lastLoginAt: { type: Date },
+    flat_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Flat',
+      default: null
+    }
   },
   {
-    timestamps: true,
-  },
+    timestamps: true
+  }
 );
 
-const User = mongoose.models.User || mongoose.model("User", userSchema);
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) {
+    return;
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+const User = mongoose.model('User', userSchema);
 
 export default User;

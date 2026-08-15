@@ -1,74 +1,107 @@
-import store from "../data/store.js";
+import Visitor from '../models/Visitor.js';
+import Flat from '../models/Flat.js';
 
-export const getSecurityDashboard = (req, res) => {
-  return res.status(200).json({
-    metrics: [
-      { label: "Collected Dues", value: "₹ 8.6L" },
-      { label: "Active Residents", value: "1,284" },
-      { label: "Open Tickets", value: "17" },
-      { label: "Gate Entries", value: "3,418" },
-    ],
-    alerts: store.securityAlerts,
-    logs: store.securityLogs,
-  });
-};
+export const verifyPass = async (req, res, next) => {
+  try {
+    const { gate_pass_code } = req.body;
 
-export const createVisitorLog = (req, res) => {
-  const { visitorName, vehicleNumber, targetFlat, entryTime } = req.body;
-
-  if (!visitorName || !vehicleNumber || !targetFlat || !entryTime) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "visitorName, vehicleNumber, targetFlat, and entryTime are required.",
+    if (!gate_pass_code) {
+      return res.status(400).json({
+        success: false,
+        message: 'gate_pass_code is required.'
       });
+    }
+
+    const visitor = await Visitor.findOne({ gate_pass_code });
+
+    if (!visitor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid gate pass code. Visitor not found.'
+      });
+    }
+
+    if (visitor.status === 'Entered') {
+      return res.status(400).json({
+        success: false,
+        message: 'Visitor pass has already been used and visitor is currently on premises.'
+      });
+    }
+
+    if (visitor.status === 'Exited') {
+      return res.status(400).json({
+        success: false,
+        message: 'Visitor pass has expired because visitor has already exited.'
+      });
+    }
+
+    visitor.status = 'Entered';
+    visitor.entry_timestamp = new Date();
+    await visitor.save();
+    await visitor.populate('flat_id');
+
+    res.status(200).json({
+      success: true,
+      message: 'Gate pass verified. Visitor entry recorded successfully.',
+      data: visitor
+    });
+  } catch (error) {
+    next(error);
   }
-
-  const log = {
-    id: `SL-${Math.floor(1000 + Math.random() * 9000)}`,
-    name: visitorName,
-    target: targetFlat,
-    entry: entryTime,
-    vehicle: vehicleNumber,
-    status: "Approved",
-  };
-
-  store.securityLogs.unshift(log);
-  return res
-    .status(201)
-    .json({ message: "Visitor log created successfully.", log });
 };
 
-export const verifyGatePass = (req, res) => {
-  const { code } = req.body;
+export const logWalkInVisitor = async (req, res, next) => {
+  try {
+    const { visitor_name, phone, vehicle_number, flat_id } = req.body;
 
-  if (!code) {
-    return res.status(400).json({ message: "Gate pass code is required." });
+    if (!visitor_name || !phone || !flat_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'visitor_name, phone, and flat_id are required for walk-in visitors.'
+      });
+    }
+
+    const flat = await Flat.findById(flat_id);
+    if (!flat) {
+      return res.status(404).json({
+        success: false,
+        message: 'Specified flat does not exist.'
+      });
+    }
+
+    const visitor = await Visitor.create({
+      visitor_name,
+      phone,
+      vehicle_number: vehicle_number || '',
+      flat_id,
+      status: 'Entered',
+      entry_timestamp: new Date()
+    });
+
+    await visitor.populate('flat_id');
+
+    res.status(201).json({
+      success: true,
+      message: 'Walk-in visitor entry logged successfully.',
+      data: visitor
+    });
+  } catch (error) {
+    next(error);
   }
-
-  const match = store.visitorPasses.find(
-    (pass) =>
-      pass.code.toLowerCase() === String(code).toLowerCase() ||
-      pass.id.toLowerCase() === String(code).toLowerCase(),
-  );
-
-  if (!match) {
-    return res.status(404).json({ message: "Pass not found or invalid." });
-  }
-
-  return res.status(200).json({
-    message: "Access verified successfully.",
-    approved: true,
-    guest: match.guest,
-    type: match.type,
-  });
 };
 
-export const getSecurityAlerts = (req, res) => {
-  return res.status(200).json({ alerts: store.securityAlerts });
-};
+export const getActiveVisitors = async (req, res, next) => {
+  try {
+    const activeVisitors = await Visitor.find({ status: 'Entered' })
+      .populate('flat_id')
+      .sort({ entry_timestamp: -1 });
 
-export const getSecurityLogs = (req, res) => {
-  return res.status(200).json({ logs: store.securityLogs });
+    res.status(200).json({
+      success: true,
+      count: activeVisitors.length,
+      data: activeVisitors
+    });
+  } catch (error) {
+    next(error);
+  }
 };

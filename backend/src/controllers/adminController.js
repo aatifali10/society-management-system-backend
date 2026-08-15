@@ -1,95 +1,154 @@
-import store from "../data/store.js";
+import Flat from '../models/Flat.js';
+import User from '../models/User.js';
+import Bill from '../models/Bill.js';
+import Notice from '../models/Notice.js';
 
-export const getAdminDashboard = (req, res) => {
-  return res.status(200).json({
-    metrics: [
-      { label: "Collected Dues", value: "₹ 8.6L" },
-      { label: "Active Residents", value: "1,284" },
-      { label: "Open Tickets", value: "17" },
-      { label: "Gate Entries", value: "3,418" },
-    ],
-    residents: store.residents,
-    tickets: store.helpdeskTickets,
-    logs: store.securityLogs,
-  });
-};
+export const createFlat = async (req, res, next) => {
+  try {
+    const { block_name, flat_number, occupancy_type } = req.body;
 
-export const getResidents = (req, res) => {
-  return res.status(200).json({ residents: store.residents });
-};
-
-export const getBillingSummary = (req, res) => {
-  return res.status(200).json({
-    totalCollected: "₹ 8.6L",
-    overdue: "₹ 1.2L",
-    bills: store.bills,
-  });
-};
-
-export const applyLatePenalty = (req, res) => {
-  const { billId, penalty = 250 } = req.body;
-  const bill = store.bills.find((item) => item.id === billId);
-
-  if (!bill) {
-    return res.status(404).json({ message: "Bill not found." });
-  }
-
-  bill.total = Number(bill.total) + Number(penalty);
-  bill.status = "Overdue";
-
-  return res
-    .status(200)
-    .json({ message: "Penalty applied successfully.", bill });
-};
-
-export const getHelpdeskTickets = (req, res) => {
-  return res.status(200).json({ tickets: store.helpdeskTickets });
-};
-
-export const updateTicketStatus = (req, res) => {
-  const { ticketId } = req.params;
-  const { status } = req.body;
-  const allowed = ["Assigned", "In-Progress", "Resolved"];
-
-  if (!status || !allowed.includes(status)) {
-    return res
-      .status(400)
-      .json({
-        message: "Valid status is required: Assigned, In-Progress, Resolved.",
+    if (!block_name || !flat_number || !occupancy_type) {
+      return res.status(400).json({
+        success: false,
+        message: 'block_name, flat_number, and occupancy_type are required.'
       });
-  }
+    }
 
-  const ticket = store.helpdeskTickets.find((item) => item.id === ticketId);
-  if (!ticket) {
-    return res.status(404).json({ message: "Ticket not found." });
-  }
+    const existingFlat = await Flat.findOne({ block_name, flat_number });
+    if (existingFlat) {
+      return res.status(409).json({
+        success: false,
+        message: `Flat ${flat_number} in Block ${block_name} already exists.`
+      });
+    }
 
-  ticket.status = status;
-  return res
-    .status(200)
-    .json({ message: "Ticket status updated successfully.", ticket });
+    const flat = await Flat.create({
+      block_name,
+      flat_number,
+      occupancy_type
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Flat created successfully',
+      data: flat
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-export const createNotice = (req, res) => {
-  const { title, tag = "Announcement", date } = req.body;
+export const onboardResident = async (req, res, next) => {
+  try {
+    const { username, password, flat_id } = req.body;
 
-  if (!title) {
-    return res.status(400).json({ message: "title is required." });
+    if (!username || !password || !flat_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'username, password, and flat_id are required.'
+      });
+    }
+
+    const flat = await Flat.findById(flat_id);
+    if (!flat) {
+      return res.status(404).json({
+        success: false,
+        message: 'Specified flat does not exist.'
+      });
+    }
+
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Username is already in use.'
+      });
+    }
+
+    const user = await User.create({
+      username,
+      password,
+      role: 'Resident',
+      flat_id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Resident onboarded successfully',
+      data: {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        flat_id: user.flat_id
+      }
+    });
+  } catch (error) {
+    next(error);
   }
-
-  const notice = {
-    id: `NT-${Math.floor(1000 + Math.random() * 9000)}`,
-    title,
-    tag,
-    date: date || new Date().toISOString().slice(0, 10),
-  };
-
-  store.notices.unshift(notice);
-  return res
-    .status(201)
-    .json({ message: "Notice published successfully.", notice });
 };
 
-export const getGateLogs = (req, res) => {
-  return res.status(200).json({ logs: store.securityLogs });
+export const generateBills = async (req, res, next) => {
+  try {
+    const { amount_due, due_date } = req.body;
+
+    if (!amount_due || !due_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'amount_due and due_date are required.'
+      });
+    }
+
+    const flats = await Flat.find();
+    if (flats.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No flats found to generate bills for.'
+      });
+    }
+
+    const billDocuments = flats.map((flat) => ({
+      flat_id: flat._id,
+      amount_due,
+      due_date: new Date(due_date),
+      payment_status: 'Pending'
+    }));
+
+    const createdBills = await Bill.insertMany(billDocuments);
+
+    res.status(201).json({
+      success: true,
+      message: `Generated ${createdBills.length} maintenance bills successfully.`,
+      count: createdBills.length,
+      data: createdBills
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const broadcastNotice = async (req, res, next) => {
+  try {
+    const { title, description } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({
+        success: false,
+        message: 'title and description are required.'
+      });
+    }
+
+    const notice = await Notice.create({
+      title,
+      description,
+      created_by: req.user.id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Notice broadcasted successfully',
+      data: notice
+    });
+  } catch (error) {
+    next(error);
+  }
 };

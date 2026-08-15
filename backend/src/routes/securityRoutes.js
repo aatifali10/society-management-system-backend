@@ -1,44 +1,18 @@
-import express from "express";
+import express from 'express';
 import {
-  getSecurityDashboard,
-  createVisitorLog,
-  verifyGatePass,
-  getSecurityAlerts,
-  getSecurityLogs,
-} from "../controllers/securityController.js";
-import { authenticate, authorizeRoles } from "../middleware/authMiddleware.js";
+  verifyPass,
+  logWalkInVisitor,
+  getActiveVisitors
+} from '../controllers/securityController.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { roleMiddleware } from '../middlewares/roleMiddleware.js';
 
 const router = express.Router();
 
-router.get(
-  "/dashboard",
-  authenticate,
-  authorizeRoles("security", "admin"),
-  getSecurityDashboard,
-);
-router.post(
-  "/visitor-log",
-  authenticate,
-  authorizeRoles("security", "admin"),
-  createVisitorLog,
-);
-router.post(
-  "/verify-pass",
-  authenticate,
-  authorizeRoles("security", "admin"),
-  verifyGatePass,
-);
-router.get(
-  "/alerts",
-  authenticate,
-  authorizeRoles("security", "admin"),
-  getSecurityAlerts,
-);
-router.get(
-  "/logs",
-  authenticate,
-  authorizeRoles("security", "admin"),
-  getSecurityLogs,
-);
+router.use(authMiddleware, roleMiddleware(['Guard']));
+
+router.post('/verify-pass', verifyPass);
+router.post('/walk-in', logWalkInVisitor);
+router.get('/active-visitors', getActiveVisitors);
 
 export default router;

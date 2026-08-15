@@ -1,25 +1,13 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const mongoUri =
-  process.env.MONGO_URI || "mongodb://localhost:27017/society-management";
-
-export const isMongoConnected = { value: false };
-
-export default async function connectDatabase() {
+const connectDB = async () => {
   try {
-    await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000,
-    });
-
-    isMongoConnected.value = true;
-    console.log("MongoDB connected successfully.");
-    return true;
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    isMongoConnected.value = false;
-    console.warn(
-      "MongoDB not available, starting backend with in-memory user store for auth testing.",
-      error.message,
-    );
-    return false;
+    console.error(`MongoDB Connection Error: ${error.message}`);
+    process.exit(1);
   }
-}
+};
+
+export default connectDB;

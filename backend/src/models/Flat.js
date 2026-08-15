@@ -1,60 +1,28 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const flatSchema = new mongoose.Schema(
   {
-    flatNumber: {
+    block_name: {
       type: String,
-      required: true,
-      unique: true,
+      required: [true, 'Block name is required'],
+      trim: true
     },
-    tower: {
+    flat_number: {
       type: String,
-      required: true,
+      required: [true, 'Flat number is required'],
+      trim: true
     },
-    floor: {
-      type: Number,
-      required: true,
-    },
-    area: {
-      type: Number,
-      required: true,
-    },
-    type: {
+    occupancy_type: {
       type: String,
-      enum: ["1BHK", "2BHK", "3BHK", "4BHK"],
-      required: true,
-    },
-    owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    tenants: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    currentResidents: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    isOccupied: {
-      type: Boolean,
-      default: false,
-    },
-    maintenanceDue: {
-      type: Number,
-      default: 0,
-    },
-    lastMaintenancePaid: {
-      type: Date,
-    },
+      enum: ['Owner', 'Tenant'],
+      required: [true, 'Occupancy type must be either Owner or Tenant']
+    }
   },
   {
-    timestamps: true,
-  },
+    timestamps: true
+  }
 );
 
-export const Flat = mongoose.model("Flat", flatSchema);
+const Flat = mongoose.model('Flat', flatSchema);
+
+export default Flat;

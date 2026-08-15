@@ -1,50 +1,20 @@
-import express from "express";
+import express from 'express';
 import {
-  getAdminDashboard,
-  getResidents,
-  getBillingSummary,
-  applyLatePenalty,
-  getHelpdeskTickets,
-  updateTicketStatus,
-  createNotice,
-  getGateLogs,
-} from "../controllers/adminController.js";
-import { authenticate, authorizeRoles } from "../middleware/authMiddleware.js";
+  createFlat,
+  onboardResident,
+  generateBills,
+  broadcastNotice
+} from '../controllers/adminController.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { roleMiddleware } from '../middlewares/roleMiddleware.js';
 
 const router = express.Router();
 
-router.get(
-  "/dashboard",
-  authenticate,
-  authorizeRoles("admin"),
-  getAdminDashboard,
-);
-router.get("/residents", authenticate, authorizeRoles("admin"), getResidents);
-router.get(
-  "/billing",
-  authenticate,
-  authorizeRoles("admin"),
-  getBillingSummary,
-);
-router.post(
-  "/billing/penalty",
-  authenticate,
-  authorizeRoles("admin"),
-  applyLatePenalty,
-);
-router.get(
-  "/helpdesk",
-  authenticate,
-  authorizeRoles("admin"),
-  getHelpdeskTickets,
-);
-router.patch(
-  "/helpdesk/:ticketId/status",
-  authenticate,
-  authorizeRoles("admin"),
-  updateTicketStatus,
-);
-router.post("/notice", authenticate, authorizeRoles("admin"), createNotice);
-router.get("/gate-logs", authenticate, authorizeRoles("admin"), getGateLogs);
+router.use(authMiddleware, roleMiddleware(['Admin']));
+
+router.post('/flat', createFlat);
+router.post('/resident', onboardResident);
+router.post('/bills', generateBills);
+router.post('/notice', broadcastNotice);
 
 export default router;

@@ -1,93 +1,40 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const complaintSchema = new mongoose.Schema(
   {
-    flat: {
+    resident_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Flat",
-      required: true,
-    },
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    title: {
-      type: String,
-      required: true,
-    },
-    description: {
-      type: String,
-      required: true,
+      ref: 'User',
+      required: [true, 'Resident ID is required']
     },
     category: {
       type: String,
-      enum: [
-        "plumbing",
-        "electrical",
-        "elevator",
-        "carpentry",
-        "painting",
-        "cleaning",
-        "security",
-        "pest_control",
-        "other",
-      ],
-      required: true,
+      required: [true, 'Category is required'],
+      trim: true
     },
-    priority: {
+    description: {
       type: String,
-      enum: ["low", "medium", "high", "urgent"],
-      default: "medium",
+      required: [true, 'Description is required']
+    },
+    photo_url: {
+      type: String,
+      default: ''
     },
     status: {
       type: String,
-      enum: ["pending", "in_progress", "resolved", "rejected", "on_hold"],
-      default: "pending",
+      enum: ['Pending', 'In-Progress', 'Resolved'],
+      default: 'Pending'
     },
-    photos: [
-      {
-        type: String,
-      },
-    ],
-    assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    comments: [
-      {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-        comment: String,
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
-    resolvedDate: {
+    created_at: {
       type: Date,
-    },
-    resolutionNotes: {
-      type: String,
-    },
-    rating: {
-      type: Number,
-      min: 1,
-      max: 5,
-    },
-    feedback: {
-      type: String,
-    },
+      default: Date.now
+    }
   },
   {
-    timestamps: true,
-  },
+    timestamps: true
+  }
 );
 
-complaintSchema.index({ status: 1, priority: 1 });
-complaintSchema.index({ flat: 1, createdAt: -1 });
+const Complaint = mongoose.model('Complaint', complaintSchema);
 
-export const Complaint = mongoose.model("Complaint", complaintSchema);
+export default Complaint;

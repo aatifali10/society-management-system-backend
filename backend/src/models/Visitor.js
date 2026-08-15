@@ -1,105 +1,46 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const visitorSchema = new mongoose.Schema(
   {
-    flat: {
+    visitor_name: {
+      type: String,
+      required: [true, 'Visitor name is required'],
+      trim: true
+    },
+    phone: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      trim: true
+    },
+    vehicle_number: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    flat_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Flat",
-      required: true,
+      ref: 'Flat',
+      required: [true, 'Flat reference is required']
     },
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    visitorName: {
+    gate_pass_code: {
       type: String,
-      required: true,
+      default: null
     },
-    visitorPhone: {
-      type: String,
-      required: true,
-    },
-    visitorEmail: {
-      type: String,
-    },
-    vehicleNumber: {
-      type: String,
-    },
-    visitorType: {
-      type: String,
-      enum: ["guest", "delivery", "cab", "service", "other"],
-      required: true,
-    },
-    purpose: {
-      type: String,
-      required: true,
-    },
-    checkInTime: {
+    entry_timestamp: {
       type: Date,
-      required: true,
-    },
-    checkOutTime: {
-      type: Date,
-    },
-    expiryTime: {
-      type: Date,
-      required: true,
-    },
-    qrCode: {
-      type: String,
-    },
-    qrCodeData: {
-      type: String,
+      default: null
     },
     status: {
       type: String,
-      enum: [
-        "pending",
-        "approved",
-        "rejected",
-        "checked_in",
-        "checked_out",
-        "expired",
-      ],
-      default: "pending",
-    },
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    gatePassNumber: {
-      type: String,
-      unique: true,
-    },
-    notes: {
-      type: String,
-    },
-    isPreApproved: {
-      type: Boolean,
-      default: false,
-    },
-    idProof: {
-      type: String,
-    },
+      enum: ['Pre-Approved', 'Entered', 'Exited'],
+      default: 'Pre-Approved'
+    }
   },
   {
-    timestamps: true,
-  },
+    timestamps: true
+  }
 );
 
-visitorSchema.pre("save", function (next) {
-  if (!this.gatePassNumber) {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const day = date.getDate().toString().padStart(2, "0");
-    const random = Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, "0");
-    this.gatePassNumber = `GP${year}${month}${day}${random}`;
-  }
-  next();
-});
+const Visitor = mongoose.model('Visitor', visitorSchema);
 
-export const Visitor = mongoose.model("Visitor", visitorSchema);
+export default Visitor;
